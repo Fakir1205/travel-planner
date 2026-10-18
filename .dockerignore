@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.git/
+.gitignore
+.idea/
+.pytest_cache/
+logs/
+tests/
+docs/
+frontend/
+.env
+*.tar.gz
+*.zip

@@ -1,0 +1,73 @@
+name: travel-planner
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: travel-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: travel_user
+      POSTGRES_PASSWORD: travel123456
+      POSTGRES_DB: travel_planner_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - /data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U travel_user -d travel_planner_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7.4
+    container_name: redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--notify-keyspace-events", "Ex"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - /data/redis/data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
+    image: travel-planner:latest
+    container_name: travel-planner
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      APP_HOST: 0.0.0.0
+      APP_PORT: "8000"
+      TZ: Asia/Shanghai
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
